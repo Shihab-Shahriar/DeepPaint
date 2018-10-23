@@ -4,8 +4,9 @@ import sys,os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from Gallery import Gallery
-from Colorizer import ColorizeTab
+from Gui.Gallery import Gallery
+from Gui.ColorizerGUI import ColorizeTab
+from Colorizer import colorize
 
 class Window(QWidget):
     def __init__(self):
@@ -16,14 +17,14 @@ class Window(QWidget):
         btmlayout = QHBoxLayout(self)
         
         self.gallery = Gallery(self)
-        pdir = "c:/Users/Public/Pictures/Sample Pictures/"
+        pdir = "d:/Images/Content/"
         paths = [pdir+f for f in os.listdir(pdir) if f.endswith(".jpg") or f.endswith(".png")]
         for p in paths:
             self.gallery.addImage(p)
         self.gallery.setMaximumWidth(200)
         self.gallery.setDragEnabled(True)
         
-        self.colorizer = ColorizeTab(self)
+        self.colorizer = ColorizeTab(self,colorize)
         self.stylizer = QWidget(self)
         layout = QVBoxLayout(self)
         self.pushButton1 = QPushButton("PyQt5 button")

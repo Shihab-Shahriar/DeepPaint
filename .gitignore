@@ -1,0 +1,4 @@
+*.pth
+.ipynb_checkpoints/
+.idea/
+weights/

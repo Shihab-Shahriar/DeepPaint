@@ -1,149 +1,246 @@
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+from skimage import color
+from scipy.ndimage.interpolation import zoom
 from PIL import Image
+from typing import List
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+import os
+import torch
+import torch.nn as nn
 
-from Gallery import OutputBox
-
-
-class ImageHint(QWidget): 
-
-    updated = pyqtSignal(Image.Image)
-    
-    def __init__(self):
-        super(ImageHint,self).__init__()
-        self.chosen_points = []     
-        self.brushCol = Qt.blue
-        self.px = None
-        self.img = None
-        self.r = 5
-        self.setAcceptDrops(True)
-
-    def paintEvent(self,event):
-        painter = QPainter(self)
-        if self.px==None:
-            painter.drawText(QPoint(self.width()//2-5,self.height()//2-5),"No Painting")
-            return
-        painter.drawPixmap(self.rect(), self.px)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        for pos,col,r in self.chosen_points:
-            painter.setBrush(QBrush(col))
-            qs = self.size()
-            sx,sy = qs.width(),qs.height()
-            painter.drawEllipse(QPoint(pos[0]*sx,pos[1]*sy),r,r)
-
-        
-
-    def mouseReleaseEvent(self, cursor_event):
-        #print("hello:",cursor_event.pos())
-        qs = self.size()
-        sx,sy = qs.width(),qs.height()
-        cur = cursor_event.pos()
-        x,y = cur.x(),cur.y()
-        rat = (x/sx,y/sy)
-        self.chosen_points.append((rat,self.brushCol,self.r))
-        self.update()
-        self.updated.emit(self.img)
-        
-    def reset(self):
-        #print("Hints reset")
-        self.chosen_points = []
-        self.update()
-        self.updated.emit(self.img)
-        
-    def undo(self):
-        #print("Last hint undone")
-        self.chosen_points.pop()
-        self.update()
-        self.updated.emit(self.img)
-
-    def updateRad(self,r):
-        self.r = r
-        
-    def sizeHint(self):
-        return QSize(300,300)
-    
-    def dragEnterEvent(self, e):
-        if hasattr(e.mimeData(),'img'): e.accept()
-        else: e.ignore()
-
-    def dropEvent(self, e):
-        self.img = e.mimeData().img
-        self.px = self.img.toqpixmap()
-        self.chosen_points = []
-        self.update()
-        self.updated.emit(self.img)
+def lab2rgb_transpose(img_l, img_ab):
+    ''' INPUTS
+            img_l     1xXxX     [0,100]
+            img_ab     2xXxX     [-100,100]
+        OUTPUTS
+            returned value is XxXx3 '''
+    print("labtoRGB:",img_l.max(),img_l.min(),img_ab.max(),img_ab.min())
+    pred_lab = np.concatenate((img_l, img_ab), axis=0).transpose((1, 2, 0))
+    pred_rgb = (np.clip(color.lab2rgb(pred_lab), 0, 1) * 255).astype('uint8')
+    return pred_rgb
 
 
-class ColorizeTab(QWidget):
-    def __init__(self,*args):
-        super(ColorizeTab,self).__init__(*args)
-        self.hint = ImageHint()
-        self.out = OutputBox(Image.open("wwe.jpg"))
-        self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
-        self.initUI()
-    
-    def initUI(self):
-        mainL = QVBoxLayout()
-        self.setLayout(mainL)
-        
-        self.selCol = QPushButton("select color",self)
-        self.selCol.clicked.connect(self.colorChoose)
-        
-        self.undoBtn = QPushButton("Undo",self)     
-        self.undoBtn.clicked.connect(self.hint.undo)
+def rgb2lab_transpose(img_rgb):
+    ''' INPUTS
+            img_rgb XxXx3
+        OUTPUTS
+            returned value is 3xXxX '''
+    return color.rgb2lab(img_rgb).transpose((2, 0, 1))
 
-        self.resetBtn = QPushButton("Reset")
-        self.resetBtn.clicked.connect(self.hint.reset)
-        
-        self.curCol = QLabel("CURRENT COLOR",self)
-        self.curCol.setAlignment(Qt.AlignCenter)
-        self.curCol.setStyleSheet(f"background-color: rgb(0,0,255)")
-        self.curCol.setFixedSize(self.selCol.size())
 
-        self.sl = QSlider(Qt.Horizontal)
-        self.sl.setMinimum(1)
-        self.sl.setMaximum(10)
-        self.sl.setValue(5)
-        self.sl.setTickPosition(QSlider.TicksBelow)
-        self.sl.setTickInterval(1)
-        self.sl.valueChanged.connect(self.hint.updateRad)
-        
-        optL = QHBoxLayout()
-        optL.addStretch(1)
-        optL.addWidget(self.selCol)
-        optL.addStretch(1)
-        optL.addWidget(self.curCol)
-        optL.addStretch(1)
-        optL.addWidget(self.undoBtn)
-        optL.addStretch(1)
-        optL.addWidget(self.resetBtn)
-        optL.addStretch(1)
-        optL.addWidget(self.sl)
-        optL.addStretch(1)
-        
-        self.hint.updated.connect(self.colorize)
-        
-        topL = QHBoxLayout()
-        topL.addWidget(self.hint)
-        topL.addWidget(self.out)
-        
-        mainL.addLayout(topL)
-        mainL.addLayout(optL)
-        
-    def colorize(self,img):
-        print("Colorizing...")
-        self.out.img = img
-        self.out.px = img.toqpixmap()
-        self.out.update()
-        print("Done")
-        
-    def colorChoose(self):
-        colDialog = QColorDialog()
-        col = colDialog.getColor()
-        self.hint.brushCol = col
-        self.curCol.setStyleSheet(f"background-color: rgb({col.red()},{col.green()},{col.blue()})")
-        self.update()
-        
-        
+
+
+class SIGGRAPHGenerator(nn.Module):
+    def __init__(self, dist=False):
+        super(SIGGRAPHGenerator, self).__init__()
+        self.dist = dist
+        use_bias = True
+        norm_layer = nn.BatchNorm2d
+
+        # Conv1
+        model1 = [nn.Conv2d(4, 64, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model1 += [nn.ReLU(True), ]
+        model1 += [nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model1 += [nn.ReLU(True), ]
+        model1 += [norm_layer(64), ]
+        # add a subsampling operation
+
+        # Conv2
+        model2 = [nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model2 += [nn.ReLU(True), ]
+        model2 += [nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model2 += [nn.ReLU(True), ]
+        model2 += [norm_layer(128), ]
+        # add a subsampling layer operation
+
+        # Conv3
+        model3 = [nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model3 += [nn.ReLU(True), ]
+        model3 += [nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model3 += [nn.ReLU(True), ]
+        model3 += [nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model3 += [nn.ReLU(True), ]
+        model3 += [norm_layer(256), ]
+        # add a subsampling layer operation
+
+        # Conv4
+        model4 = [nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model4 += [nn.ReLU(True), ]
+        model4 += [nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model4 += [nn.ReLU(True), ]
+        model4 += [nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model4 += [nn.ReLU(True), ]
+        model4 += [norm_layer(512), ]
+
+        # Conv5
+        model5 = [nn.Conv2d(512, 512, kernel_size=3, dilation=2, stride=1, padding=2, bias=use_bias), ]
+        model5 += [nn.ReLU(True), ]
+        model5 += [nn.Conv2d(512, 512, kernel_size=3, dilation=2, stride=1, padding=2, bias=use_bias), ]
+        model5 += [nn.ReLU(True), ]
+        model5 += [nn.Conv2d(512, 512, kernel_size=3, dilation=2, stride=1, padding=2, bias=use_bias), ]
+        model5 += [nn.ReLU(True), ]
+        model5 += [norm_layer(512), ]
+
+        # Conv6
+        model6 = [nn.Conv2d(512, 512, kernel_size=3, dilation=2, stride=1, padding=2, bias=use_bias), ]
+        model6 += [nn.ReLU(True), ]
+        model6 += [nn.Conv2d(512, 512, kernel_size=3, dilation=2, stride=1, padding=2, bias=use_bias), ]
+        model6 += [nn.ReLU(True), ]
+        model6 += [nn.Conv2d(512, 512, kernel_size=3, dilation=2, stride=1, padding=2, bias=use_bias), ]
+        model6 += [nn.ReLU(True), ]
+        model6 += [norm_layer(512), ]
+
+        # Conv7
+        model7 = [nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model7 += [nn.ReLU(True), ]
+        model7 += [nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model7 += [nn.ReLU(True), ]
+        model7 += [nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model7 += [nn.ReLU(True), ]
+        model7 += [norm_layer(512), ]
+
+        # Conv7
+        model8up = [nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1, bias=use_bias)]
+        model3short8 = [nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+
+        model8 = [nn.ReLU(True), ]
+        model8 += [nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model8 += [nn.ReLU(True), ]
+        model8 += [nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model8 += [nn.ReLU(True), ]
+        model8 += [norm_layer(256), ]
+
+        # Conv9
+        model9up = [nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, bias=use_bias), ]
+        model2short9 = [nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        # add the two feature maps above
+
+        model9 = [nn.ReLU(True), ]
+        model9 += [nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        model9 += [nn.ReLU(True), ]
+        model9 += [norm_layer(128), ]
+
+        # Conv10
+        model10up = [nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1, bias=use_bias), ]
+        model1short10 = [nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1, bias=use_bias), ]
+        # add the two feature maps above
+
+        model10 = [nn.ReLU(True), ]
+        model10 += [nn.Conv2d(128, 128, kernel_size=3, dilation=1, stride=1, padding=1, bias=use_bias), ]
+        model10 += [nn.LeakyReLU(negative_slope=.2), ]
+
+        # classification output
+        model_class = [nn.Conv2d(256, 529, kernel_size=1, padding=0, dilation=1, stride=1, bias=use_bias), ]
+
+        # regression output
+        model_out = [nn.Conv2d(128, 2, kernel_size=1, padding=0, dilation=1, stride=1, bias=use_bias), ]
+        model_out += [nn.Tanh()]
+
+        self.model1 = nn.Sequential(*model1)
+        self.model2 = nn.Sequential(*model2)
+        self.model3 = nn.Sequential(*model3)
+        self.model4 = nn.Sequential(*model4)
+        self.model5 = nn.Sequential(*model5)
+        self.model6 = nn.Sequential(*model6)
+        self.model7 = nn.Sequential(*model7)
+        self.model8up = nn.Sequential(*model8up)
+        self.model8 = nn.Sequential(*model8)
+        self.model9up = nn.Sequential(*model9up)
+        self.model9 = nn.Sequential(*model9)
+        self.model10up = nn.Sequential(*model10up)
+        self.model10 = nn.Sequential(*model10)
+        self.model3short8 = nn.Sequential(*model3short8)
+        self.model2short9 = nn.Sequential(*model2short9)
+        self.model1short10 = nn.Sequential(*model1short10)
+
+        self.model_class = nn.Sequential(*model_class)
+        self.model_out = nn.Sequential(*model_out)
+
+        self.upsample4 = nn.Sequential(*[nn.Upsample(scale_factor=4, mode='nearest'), ])
+        self.softmax = nn.Sequential(*[nn.Softmax(dim=1), ])
+
+    def forward(self, input_A, input_B, mask_B):
+        # input_A \in [-50,+50]
+        # input_B \in [-110, +110]
+        # mask_B \in [0, +0.5]
+
+        input_A = torch.Tensor(input_A).cuda()[None, :, :, :]
+        input_B = torch.Tensor(input_B).cuda()[None, :, :, :]
+        mask_B = torch.Tensor(mask_B).cuda()[None, :, :, :]
+
+        conv1_2 = self.model1(torch.cat((input_A / 100., input_B / 110., mask_B - .5), dim=1))
+        conv2_2 = self.model2(conv1_2[:, :, ::2, ::2])
+        conv3_3 = self.model3(conv2_2[:, :, ::2, ::2])
+        conv4_3 = self.model4(conv3_3[:, :, ::2, ::2])
+        conv5_3 = self.model5(conv4_3)
+        conv6_3 = self.model6(conv5_3)
+        conv7_3 = self.model7(conv6_3)
+
+        conv8_up = self.model8up(conv7_3) + self.model3short8(conv3_3)
+        conv8_3 = self.model8(conv8_up)
+
+        if(self.dist):
+            out_cl = self.upsample4(self.softmax(self.model_class(conv8_3) * .2))
+
+            conv9_up = self.model9up(conv8_3) + self.model2short9(conv2_2)
+            conv9_3 = self.model9(conv9_up)
+            conv10_up = self.model10up(conv9_3) + self.model1short10(conv1_2)
+            conv10_2 = self.model10(conv10_up)
+            out_reg = self.model_out(conv10_2) * 110
+
+            return (out_reg * 110, out_cl)
+        else:
+            conv9_up = self.model9up(conv8_3) + self.model2short9(conv2_2)
+            conv9_3 = self.model9(conv9_up)
+            conv10_up = self.model10up(conv9_3) + self.model1short10(conv1_2)
+            conv10_2 = self.model10(conv10_up)
+            out_reg = self.model_out(conv10_2)
+            return out_reg * 110
+
+model = SIGGRAPHGenerator().cuda().eval()
+model.load_state_dict(torch.load("d:/Deep Paint/pytorch.pth"))
+
+def run(img_rgb,inp_ab,inp_mask):
+    lab_image = color.rgb2lab(img_rgb).transpose((2, 0, 1))
+    img_l = lab_image[[0],...]
+    img_ab = lab_image[1:,...]
+    img_l -= 50.0
+
+    with torch.no_grad():
+        out_ab = model(img_l,inp_ab,inp_mask)
+    img = lab2rgb_transpose(img_l+50.0,out_ab.detach().cpu().numpy()[0])
+    arr = np.array(img)
+    ab = np.abs(arr)
+    print("Out:",arr.mean(), arr.min(), arr.max(), ab.mean(), ab.min(), ab.max())
+    return Image.fromarray(img)
+
+def put_point(input_ab,mask,loc,p,val):
+    print("Put poinbts:",val.shape)
+    val = val[:,np.newaxis,np.newaxis]
+    input_ab[:,loc[0]-p:loc[0]+p+1,loc[1]-p:loc[1]+p+1] = val
+    mask[:,loc[0]-p:loc[0]+p+1,loc[1]-p:loc[1]+p+1] = 1
+    return (input_ab,mask)
+
+def convRGB(rgb):
+    im = [[rgb]]
+    im = np.array(im)/255
+    return color.rgb2lab(im)[0][0]
+
+def colorize(img:Image.Image,points:List):
+    arr = np.array(img)
+    ab = np.abs(arr)
+    print("In:",arr.mean(),arr.min(),arr.max(),ab.mean(),ab.min(),ab.max())
+    size = img.size
+    inp_ab = np.zeros((2,)+size)
+    inp_mask = np.zeros((1,)+size)
+    for pos,col,r in points:
+        print(pos,r)
+        col = convRGB(col)
+        put_point(inp_ab,inp_mask,pos,r,col[1:])
+    print("*"*16)
+    return run(img,inp_ab,inp_mask)
+
+
+
