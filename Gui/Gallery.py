@@ -5,9 +5,10 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 class AbsImageBox(QWidget):
-    def __init__(self,px=None):
+    def __init__(self,img=None):
         super(AbsImageBox,self).__init__()
-        self.px = px
+        self.img = img
+        self.px = None if img==None else img.toqpixmap()
     
     def paintEvent(self, paint_event):
         painter = QPainter(self)
@@ -21,24 +22,26 @@ class AbsImageBox(QWidget):
         return QSize(300,300)
 
 class ImageBox(AbsImageBox): #Supports dragging into
-    def __init__(self):
-        super(ImageBox,self).__init__()
+    updated = pyqtSignal(Image.Image)
+
+    def __init__(self,img=None):
+        super(ImageBox,self).__init__(img)
         self.setAcceptDrops(True)
+        self.info = None
 
     def dragEnterEvent(self, e):
         if hasattr(e.mimeData(),'img'): e.accept()
         else: e.ignore()
 
     def dropEvent(self, e):
-        self.px = e.mimeData().img.toqpixmap()
+        self.img = e.mimeData().img
+        self.px = self.img.toqpixmap()
+        if hasattr(e.mimeData(),'info'): 
+            self.info = e.mimeData().info
         self.update()
+        self.updated.emit(e.mimeData().img)
     
 class OutputBox(AbsImageBox):
-    def __init__(self,img=None):
-        self.img = img
-        self.px = None if img==None else img.toqpixmap()
-        super(OutputBox,self).__init__(self.px)
-        
     def mouseMoveEvent(self, e):
 
         if e.buttons() != Qt.RightButton or self.px==None:
@@ -59,6 +62,7 @@ class GalleryItem(QListWidgetItem):
         self.img = img
         icon = QIcon(self.img.toqpixmap())
         self.setIcon(icon)
+        self.info = None
         
         
 class Gallery(QListWidget):

@@ -14,8 +14,6 @@ class ImageHint(ImageBox):
         super(ImageHint,self).__init__()
         self.chosen_points = []     
         self.brushCol = QColor(0,0,255)
-        self.px = None
-        self.img = None
         self.r = 5
 
     def paintEvent(self,event):
@@ -82,6 +80,8 @@ class ColorizeTab(QWidget):
         self.out = OutputBox()
         ColorizeTab.colFunc = colorizer
         self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
+        self.hint.updated.connect(self.colorize)
+
         self.initUI()
     
     def initUI(self):
@@ -123,7 +123,7 @@ class ColorizeTab(QWidget):
         optL.addWidget(self.sl)
         optL.addStretch(1)
         
-        self.hint.updated.connect(self.colorize)
+        
         
         topL = QHBoxLayout()
         topL.addWidget(self.hint)
