@@ -4,9 +4,9 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-class ImageBox(QWidget):
+class AbsImageBox(QWidget):
     def __init__(self,px=None):
-        super(ImageBox,self).__init__()
+        super(AbsImageBox,self).__init__()
         self.px = px
     
     def paintEvent(self, paint_event):
@@ -19,8 +19,21 @@ class ImageBox(QWidget):
         
     def sizeHint(self):
         return QSize(300,300)
+
+class ImageBox(AbsImageBox): #Supports dragging into
+    def __init__(self):
+        super(ImageBox,self).__init__()
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, e):
+        if hasattr(e.mimeData(),'img'): e.accept()
+        else: e.ignore()
+
+    def dropEvent(self, e):
+        self.px = e.mimeData().img.toqpixmap()
+        self.update()
     
-class OutputBox(ImageBox):
+class OutputBox(AbsImageBox):
     def __init__(self,img=None):
         self.img = img
         self.px = None if img==None else img.toqpixmap()

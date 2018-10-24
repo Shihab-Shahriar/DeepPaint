@@ -4,9 +4,9 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from Gui.Gallery import OutputBox
+from Gui.Gallery import OutputBox,ImageBox
 
-class ImageHint(QWidget): 
+class ImageHint(ImageBox): 
 
     updated = pyqtSignal(Image.Image)
     
@@ -17,7 +17,6 @@ class ImageHint(QWidget):
         self.px = None
         self.img = None
         self.r = 5
-        self.setAcceptDrops(True)
 
     def paintEvent(self,event):
         painter = QPainter(self)
@@ -63,12 +62,8 @@ class ImageHint(QWidget):
         
     def sizeHint(self):
         return QSize(300,300)
-    
-    def dragEnterEvent(self, e):
-        if hasattr(e.mimeData(),'img'): e.accept()
-        else: e.ignore()
 
-    def dropEvent(self, e):
+    def dropEvent(self, e): 
         self.img = e.mimeData().img
         print(type(self.img))
         self.px = self.img.toqpixmap()
@@ -84,7 +79,7 @@ class ColorizeTab(QWidget):
     def __init__(self,parent,colorizer):
         super(ColorizeTab,self).__init__(parent)
         self.hint = ImageHint()
-        self.out = OutputBox(Image.open("d:/Images/Content/stata.jpg"))
+        self.out = OutputBox()
         ColorizeTab.colFunc = colorizer
         self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
         self.initUI()
