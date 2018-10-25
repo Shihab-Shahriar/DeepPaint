@@ -4,8 +4,9 @@ import sys,os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from Gui.Gallery import GalleryItem
-from Gui.Gallery import OutputBox,ImageBox
+from Gallery import GalleryItem
+from Gallery import OutputBox,ImageBox
+from Stylizer.algorithm import stylize
 
 class StyleList(QListWidget):
     def __init__(self,*args,**kwargs):
@@ -20,9 +21,10 @@ class StyleList(QListWidget):
         self.setFlow(QListView.LeftToRight)
 
         pdir = "Pics/"
-        paths = [pdir+f for f in os.listdir(pdir) if f.endswith(".jpg") or f.endswith(".png")]
-        for p in paths:
-            self.addImage(p,"hoo")
+        models = ['cezanne','el-greco','monet','picasso','van-gogh']
+        paths = [pdir+f+".jpg" for f in models]
+        for path,model_name in zip(paths,models):
+            self.addImage(path,model_name)
 
     def addImage(self,img,info=None):
         if type(img)==type(""): 
@@ -49,18 +51,14 @@ class StyleList(QListWidget):
         return data
 
 class StylizerTab(QWidget):
-
-    styleFunc = None
-
-    def __init__(self,parent,styleFunc):
+    def __init__(self,parent):
         super(StylizerTab,self).__init__(parent)
-        StylizerTab.styleFunc = styleFunc
         self.out = OutputBox()
         self.contentBox = ImageBox()
         self.styleBox = ImageBox()
         self.styles = StyleList(self)
-        self.contentBox.updated.connect(self.stylize)
-        self.styleBox.updated.connect(self.stylize)
+        self.contentBox.updated.connect(self.stylizeFunc)
+        self.styleBox.updated.connect(self.stylizeFunc)
         self.initUI()
 
     def initUI(self):
@@ -82,13 +80,13 @@ class StylizerTab(QWidget):
         mainL.addLayout(topL)
         mainL.addLayout(bottomL)
 
-    def stylize(self,img):
-        if self.styleBox.img and self.contentBox.img:
-            print("STYLIZING............")
-            if self.styleBox.info=="hoo":
-                self.out.img = self.styleBox.img
-            else:
-                self.out.img = self.contentBox.img   
+    def stylizeFunc(self,img):
+        if self.styleBox.img==None or self.contentBox.img==None:
+            return
+        if self.styleBox.info==None:
+            self.out.img = stylize(self.contentBox.img,self.styleBox.img,None)
+        else:
+            self.out.img = stylize(self.contentBox.img,self.styleBox.img,self.styleBox.info) 
 
-            self.out.px = self.out.img.toqpixmap()
-            self.out.update()
+        self.out.px = self.out.img.toqpixmap()
+        self.out.update()

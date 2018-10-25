@@ -4,7 +4,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from Gui.Gallery import OutputBox,ImageBox
+from Gallery import OutputBox,ImageBox
+from Colorizer.algorithm import colorize
 
 class ImageHint(ImageBox): 
 
@@ -72,15 +73,12 @@ class ImageHint(ImageBox):
 
 class ColorizeTab(QWidget):
 
-    colFunc = None
-
-    def __init__(self,parent,colorizer):
+    def __init__(self,parent):
         super(ColorizeTab,self).__init__(parent)
         self.hint = ImageHint()
         self.out = OutputBox()
-        ColorizeTab.colFunc = colorizer
         self.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
-        self.hint.updated.connect(self.colorize)
+        self.hint.updated.connect(self.colorizeFunc)
 
         self.initUI()
     
@@ -132,7 +130,7 @@ class ColorizeTab(QWidget):
         mainL.addLayout(topL)
         mainL.addLayout(optL)
         
-    def colorize(self,img):
+    def colorizeFunc(self,img):
         print("Colorizing...",type(img))
         points = []
         qs = img.size
@@ -143,7 +141,7 @@ class ColorizeTab(QWidget):
             col = (col.red(),col.green(),col.blue())
             points.append((pos,col,r))
 
-        self.out.img = ColorizeTab.colFunc(img,points)
+        self.out.img = colorize(img,points)
         self.out.px = self.out.img.toqpixmap()
         self.out.update()
         print("Done")

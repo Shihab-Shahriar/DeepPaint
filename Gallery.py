@@ -4,10 +4,11 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-class ImageBox(QWidget):
-    def __init__(self,px=None):
-        super(ImageBox,self).__init__()
-        self.px = px
+class AbsImageBox(QWidget):
+    def __init__(self,img=None):
+        super(AbsImageBox,self).__init__()
+        self.img = img
+        self.px = None if img==None else img.toqpixmap()
     
     def paintEvent(self, paint_event):
         painter = QPainter(self)
@@ -19,16 +20,30 @@ class ImageBox(QWidget):
         
     def sizeHint(self):
         return QSize(300,300)
-    
-class OutputBox(ImageBox):
+
+class ImageBox(AbsImageBox): #Supports dragging into
+    updated = pyqtSignal(Image.Image)
+
     def __init__(self,img=None):
-        self.img = img
-        self.px = None if img==None else img.toqpixmap()
-        super(OutputBox,self).__init__(self.px)
-        
+        super(ImageBox,self).__init__(img)
+        self.setAcceptDrops(True)
+        self.info = None
+
+    def dragEnterEvent(self, e):
+        if hasattr(e.mimeData(),'img'): e.accept()
+        else: e.ignore()
+
+    def dropEvent(self, e):
+        self.img = e.mimeData().img
+        self.px = self.img.toqpixmap()
+        self.info = e.mimeData().info
+        self.update()
+        self.updated.emit(e.mimeData().img)
+    
+class OutputBox(AbsImageBox):
     def mouseMoveEvent(self, e):
 
-        if e.buttons() != Qt.RightButton or self.px==None:
+        if e.buttons() != Qt.RightButton or self.img==None:
             return
 
         mimeData = QMimeData()
@@ -46,6 +61,7 @@ class GalleryItem(QListWidgetItem):
         self.img = img
         icon = QIcon(self.img.toqpixmap())
         self.setIcon(icon)
+        self.info = None
         
         
 class Gallery(QListWidget):
@@ -58,12 +74,11 @@ class Gallery(QListWidget):
         self.setDropIndicatorShown(True)
         self.setIconSize(QSize(80,60))
         
-        self.imgs = []
-
-    def addImage(self,img):
-        if type(img)==type(""): img = Image.open(img)
-        self.imgs.append(img)
-        self.addItem(GalleryItem(img))
+    def addImage(self,img,info=None):
+        if type(img)==type(""): img = Image.open(img).resize((256,256))
+        item = GalleryItem(img)
+        item.info = info
+        self.addItem(item)
         
     def dragEnterEvent(self, event):
         print("Drag entring in Gallery...")
@@ -79,6 +94,7 @@ class Gallery(QListWidget):
     def mimeData(self,item):
         data = QMimeData()
         data.img = item[0].img
+        data.info = item[0].info
         return data
     
     def contextMenuEvent(self, event):
@@ -94,6 +110,5 @@ class Gallery(QListWidget):
         
     def saveFile(self,item):
         paths = QFileDialog.getSaveFileName(self,"Save painting")
-        print(qd)
         im = item.img
         im.save(paths[0])

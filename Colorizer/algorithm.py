@@ -199,7 +199,7 @@ class SIGGRAPHGenerator(nn.Module):
             return out_reg * 110
 
 model = SIGGRAPHGenerator().cuda().eval()
-model.load_state_dict(torch.load("d:/Deep Paint/pytorch.pth"))
+model.load_state_dict(torch.load("d:/DeepPaint/weights/colorizer.pth"))
 
 def run(img_rgb,inp_ab,inp_mask):
     lab_image = color.rgb2lab(img_rgb).transpose((2, 0, 1))

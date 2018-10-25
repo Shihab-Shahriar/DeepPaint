@@ -1,4 +1,5 @@
 *.pth
+*.npy
 .ipynb_checkpoints/
 .idea/
 weights/

@@ -4,12 +4,9 @@ import sys,os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from Gui.Gallery import Gallery,GalleryItem
-from Gui.Gallery import OutputBox,ImageBox
-from Gui.stylizerGUI import StylizerTab
-from Gui.ColorizerGUI import ColorizeTab
-#from Colorizer import colorize
-
+from Gallery import *
+from Stylizer.GUI import StylizerTab
+from Colorizer.GUI import ColorizeTab
 
 
 class Window(QWidget):
@@ -28,8 +25,8 @@ class Window(QWidget):
         self.gallery.setMaximumWidth(200)
         self.gallery.setDragEnabled(True)
         
-        self.colorizer = ColorizeTab(self,lambda x,y:x)
-        self.stylizer = StylizerTab(self,len)
+        self.colorizer = ColorizeTab(self)
+        self.stylizer = StylizerTab(self)
         
         self.tabs = QTabWidget(self)
         self.tabs.addTab(self.colorizer,"Colorizer")
