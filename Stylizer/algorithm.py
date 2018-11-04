@@ -115,7 +115,7 @@ class Decoder(nn.Module):
         x = self.relu(self.ins4(self.upconv4(self.zpad(F.interpolate(x,scale_factor=2)))))
         
         x = self.rpad(x)
-        x = self.upconv5(x)
+        x = self.sig(self.upconv5(x))*2. - 1.
         return x
 
 
@@ -143,7 +143,7 @@ def stylize(Ic,Is,info):
 	    arr = dec(f)
 
 	arr = (arr+1)/2
-	arr -= arr.min()
-	arr /= arr.max()
+	#arr -= arr.min()
+	#arr /= arr.max()
 	arr = arr.squeeze(0).cpu().numpy().transpose(1,2,0)*255
-	return Image.fromarray(arr.astype("uint8"))
+	return Image.fromarray(arr.clip(0,255).astype("uint8"))

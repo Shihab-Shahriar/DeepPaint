@@ -65,7 +65,7 @@ class ImageHint(ImageBox):
     def dropEvent(self, e): 
         self.img = e.mimeData().img
         print(type(self.img))
-        self.px = self.img.toqpixmap()
+        self.px = self.img.convert("L").toqpixmap()
         self.chosen_points = []
         self.update()
         self.updated.emit(self.img)
