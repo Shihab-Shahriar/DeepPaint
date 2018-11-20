@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import color
+from sklearn.cluster import KMeans
 from scipy.ndimage.interpolation import zoom
 from PIL import Image
 from typing import List
@@ -165,6 +166,24 @@ class SIGGRAPHGenerator(nn.Module):
         # input_B \in [-110, +110]
         # mask_B \in [0, +0.5]
 
+        print("A:", input_A.shape)
+        print("B:", input_B. shape)
+        print("mask:", mask_B.shape)
+
+
+        #input_A = np.load("e:/A.npy")
+        #input_B = np.load("e:/B.npy")
+        #mask_B = np.load("e:/mask.npy")
+
+        print("A:", input_A.mean(), input_A.std(), input_A.min(), input_A.max())
+        try:
+            print("B:", (input_B[input_B!=0]).mean(), (input_B[input_B!=0]).std(), (input_B[input_B!=0]).min(),
+              (input_B[input_B != 0]).max())
+            print("Mask:", (mask_B[mask_B!=0]).mean(), (mask_B[mask_B!=0]).std(),(mask_B[mask_B!=0]).min(),
+              (mask_B[mask_B != 0]).max())
+        except:
+            print("Zero ")
+
         input_A = torch.Tensor(input_A).cuda()[None, :, :, :]
         input_B = torch.Tensor(input_B).cuda()[None, :, :, :]
         mask_B = torch.Tensor(mask_B).cuda()[None, :, :, :]
@@ -179,6 +198,7 @@ class SIGGRAPHGenerator(nn.Module):
 
         conv8_up = self.model8up(conv7_3) + self.model3short8(conv3_3)
         conv8_3 = self.model8(conv8_up)
+        print("AT MIDDLE:",conv8_3.mean(),conv8_3.std(),conv8_3.min(),conv8_3.max())
 
         if(self.dist):
             out_cl = self.upsample4(self.softmax(self.model_class(conv8_3) * .2))
@@ -187,7 +207,7 @@ class SIGGRAPHGenerator(nn.Module):
             conv9_3 = self.model9(conv9_up)
             conv10_up = self.model10up(conv9_3) + self.model1short10(conv1_2)
             conv10_2 = self.model10(conv10_up)
-            out_reg = self.model_out(conv10_2) * 110
+            out_reg = self.model_out(conv10_2)
 
             return (out_reg * 110, out_cl)
         else:
@@ -198,8 +218,31 @@ class SIGGRAPHGenerator(nn.Module):
             out_reg = self.model_out(conv10_2)
             return out_reg * 110
 
-model = SIGGRAPHGenerator().cuda().eval()
-model.load_state_dict(torch.load("d:/DeepPaint/weights/colorizer.pth"))
+model = SIGGRAPHGenerator(True).cuda().eval()
+state = torch.load("d:/DeepPaint/weights/colorizer.pth")
+if hasattr(state,'_metadata'):
+    del state._metadata
+model.load_state_dict(state)
+
+with open("d:/logs/log_deep.txt","w") as log:
+    for n,par in model.named_parameters():
+        s = f"{n},{par.mean()},{par.std()},{par.min()},{par.max()}"
+        log.write(s+"\n")
+
+col_dist = None
+
+def findABCentroids(dist_ab,h,w,K=9):
+    cmf = np.cumsum(dist_ab[:, h, w])  # CMF
+    cmf = cmf / cmf[-1]
+    cmf_bins = cmf
+
+    rnd_pts = np.random.uniform(low=0, high=1.0, size=25000)
+    inds = np.digitize(rnd_pts, bins=cmf_bins)
+
+    pts_in_hull = np.array(np.meshgrid(np.arange(-110, 120, 10), np.arange(-110, 120, 10))).reshape((2, 529)).T
+    rnd_pts_ab = pts_in_hull[inds, :]
+    kmeans = KMeans(n_clusters=K).fit(rnd_pts_ab)
+    return kmeans.cluster_centers_
 
 def run(img_rgb,inp_ab,inp_mask):
     lab_image = color.rgb2lab(img_rgb).transpose((2, 0, 1))
@@ -208,15 +251,14 @@ def run(img_rgb,inp_ab,inp_mask):
     img_l -= 50.0
 
     with torch.no_grad():
-        out_ab = model(img_l,inp_ab,inp_mask)
+        out_ab,col_dist = model(img_l,inp_ab,inp_mask)
     img = lab2rgb_transpose(img_l+50.0,out_ab.detach().cpu().numpy()[0])
-    arr = np.array(img)
-    ab = np.abs(arr)
-    print("Out:",arr.mean(), arr.min(), arr.max(), ab.mean(), ab.min(), ab.max())
-    return Image.fromarray(img)
+    print("OUT-AB:",out_ab.mean(),out_ab.std(),out_ab.min(),out_ab.max())
+    print("OUT IMG-L:",img.mean(),img.std(),img.min(),img.max())
+
+    return Image.fromarray(img),col_dist
 
 def put_point(input_ab,mask,loc,p,val):
-    print("Put poinbts:",val.shape)
     val = val[:,np.newaxis,np.newaxis]
     input_ab[:,loc[0]-p:loc[0]+p+1,loc[1]-p:loc[1]+p+1] = val
     mask[:,loc[0]-p:loc[0]+p+1,loc[1]-p:loc[1]+p+1] = 1
@@ -228,6 +270,8 @@ def convRGB(rgb):
     return color.rgb2lab(im)[0][0]
 
 def colorize(img:Image.Image,points:List):
+    global col_dist
+    print("POINTS SIZE:",len(points))
     arr = np.array(img)
     ab = np.abs(arr)
     print("In:",arr.mean(),arr.min(),arr.max(),ab.mean(),ab.min(),ab.max())
@@ -235,11 +279,15 @@ def colorize(img:Image.Image,points:List):
     inp_ab = np.zeros((2,)+size)
     inp_mask = np.zeros((1,)+size)
     for pos,col,r in points:
-        print(pos,r)
-        col = convRGB(col)
-        put_point(inp_ab,inp_mask,pos,r,col[1:])
-    print("*"*16)
-    return run(img,inp_ab,inp_mask)
-
+        col = convRGB(col)[1:]
+        col_centres = findABCentroids(col_dist,pos[0],pos[1])
+        dist_2 = np.sum((col_centres - col)**2, axis=1)
+        colMod = col_centres[np.argmin(dist_2)]
+        put_point(inp_ab,inp_mask,pos,r,colMod)
+        print(f"Old:New-{col}:{colMod},pos={pos},centres = {col_centres}")
+    img,col_dist = run(img,inp_ab,inp_mask)
+    col_dist = col_dist[0]
+    print("COL DISTR SHAPE:",col_dist.shape)
+    return img
 
 
