@@ -280,11 +280,11 @@ def colorize(img:Image.Image,points:List):
     inp_mask = np.zeros((1,)+size)
     for pos,col,r in points:
         col = convRGB(col)[1:]
-        col_centres = findABCentroids(col_dist,pos[0],pos[1])
-        dist_2 = np.sum((col_centres - col)**2, axis=1)
-        colMod = col_centres[np.argmin(dist_2)]
-        put_point(inp_ab,inp_mask,pos,r,colMod)
-        print(f"Old:New-{col}:{colMod},pos={pos},centres = {col_centres}")
+        #col_centres = findABCentroids(col_dist,pos[0],pos[1])
+        #dist_2 = np.sum((col_centres - col)**2, axis=1)
+        #colMod = col_centres[np.argmin(dist_2)]
+        put_point(inp_ab,inp_mask,pos,r,col)
+        #print(f"Old:New-{col}:{colMod},pos={pos},centres = {col_centres}")
     img,col_dist = run(img,inp_ab,inp_mask)
     col_dist = col_dist[0]
     print("COL DISTR SHAPE:",col_dist.shape)

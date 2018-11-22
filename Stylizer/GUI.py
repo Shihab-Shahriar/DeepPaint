@@ -24,7 +24,7 @@ class StyleList(QListWidget):
         models = ['cezanne','el-greco','monet','picasso','van-gogh']
         paths = [pdir+f+".jpg" for f in models]
         for path,model_name in zip(paths,models):
-            self.addImage(path,model_name)
+            self.addImage(path,{'model_name':model_name})
 
     def addImage(self,img,info=None):
         if type(img)==type(""): 
@@ -53,25 +53,38 @@ class StyleList(QListWidget):
 class StylizerTab(QWidget):
     def __init__(self,parent):
         super(StylizerTab,self).__init__(parent)
-        self.out = OutputBox()
         self.contentBox = ImageBox()
         self.styleBox = ImageBox()
+        self.out = OutputBox()
+        self.sl = QSlider(Qt.Horizontal)
         self.styles = StyleList(self)
+
+        self.initUI()
         self.contentBox.updated.connect(self.stylizeFunc)
         self.styleBox.updated.connect(self.stylizeFunc)
-        self.initUI()
+        self.sl.valueChanged.connect(self.stylizeFunc)
 
     def initUI(self):
         mainL = QVBoxLayout()
         topL = QHBoxLayout()
         topLeftL = QVBoxLayout()
+        topRightL = QVBoxLayout()
         self.setLayout(mainL)
         
         topLeftL.addWidget(self.contentBox)
         topLeftL.addWidget(self.styleBox)
 
+        
+        self.sl.setMinimum(1)
+        self.sl.setMaximum(10)
+        self.sl.setValue(5)
+        self.sl.setTickPosition(QSlider.TicksBelow)
+        self.sl.setTickInterval(1)
+        topRightL.addWidget(self.out)
+        topRightL.addWidget(self.sl)
+
         topL.addLayout(topLeftL)
-        topL.addWidget(self.out)
+        topL.addLayout(topRightL)
         
         
         bottomL = QVBoxLayout(self)
@@ -83,10 +96,10 @@ class StylizerTab(QWidget):
     def stylizeFunc(self,img):
         if self.styleBox.img==None or self.contentBox.img==None:
             return
-        if self.styleBox.info==None:
-            self.out.img = stylize(self.contentBox.img,self.styleBox.img,None)
-        else:
-            self.out.img = stylize(self.contentBox.img,self.styleBox.img,self.styleBox.info) 
+
+        info = self.styleBox.info or {}
+        info['slider'] = self.sl.value()
+        self.out.img = stylize(self.contentBox.img,self.styleBox.img,info) 
 
         self.out.px = self.out.img.toqpixmap()
         self.out.update()

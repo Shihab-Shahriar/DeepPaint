@@ -21,7 +21,10 @@ class Window(QWidget):
         pdir = "Pics/"
         paths = [pdir+f for f in os.listdir(pdir) if f.endswith(".jpg") or f.endswith(".png")]
         for p in paths:
-            self.gallery.addImage(p)
+            try:
+                self.gallery.addImage(p)
+            except:
+                pass
         self.gallery.setMaximumWidth(200)
         self.gallery.setDragEnabled(True)
         
