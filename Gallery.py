@@ -21,7 +21,7 @@ class AbsImageBox(QWidget):
     def sizeHint(self):
         return QSize(300,300)
 
-class ImageBox(AbsImageBox): #Supports dragging into
+class ImageBox(AbsImageBox): #Supports dragging INTO
     updated = pyqtSignal(Image.Image)
 
     def __init__(self,img=None):
@@ -40,7 +40,7 @@ class ImageBox(AbsImageBox): #Supports dragging into
         self.update()
         self.updated.emit(e.mimeData().img)
     
-class OutputBox(AbsImageBox):
+class OutputBox(AbsImageBox):  #Supports dragging OUT
     def mouseMoveEvent(self, e):
 
         if e.buttons() != Qt.RightButton or self.img==None:
@@ -75,7 +75,7 @@ class Gallery(QListWidget):
         self.setIconSize(QSize(80,60))
         
     def addImage(self,img,info=None):
-        if type(img)==type(""): img = Image.open(img).resize((256,256))
+        if type(img)==type(""): img = Image.open(img)
         item = GalleryItem(img)
         item.info = info
         self.addItem(item)
@@ -106,6 +106,7 @@ class Gallery(QListWidget):
         sv.triggered.connect(lambda :self.saveFile(item))
         dt = m.addAction("Delete")
         dt.triggered.connect(lambda :self.takeItem(self.row(item)))
+        dt = m.addAction("Resize")
         act = m.exec_(self.mapToGlobal(event.pos()))
         
     def saveFile(self,item):

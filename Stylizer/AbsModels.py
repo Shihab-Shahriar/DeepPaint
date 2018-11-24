@@ -1,6 +1,9 @@
 import torch 
 from torch import nn
 import torch.nn.functional as F
+import torchvision.transforms as transforms
+from PIL import Image
+
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -103,3 +106,32 @@ class Decoder(nn.Module):
         x = self.rpad(x)
         x = self.sig(self.upconv5(x))*2. - 1.
         return x
+
+
+MODELS = ['cezanne','el-greco','monet','picasso','van-gogh']
+
+enc = Encoder().cuda().eval()
+dec = Decoder().cuda().eval()
+state_dicts = {}
+for mod in MODELS:
+    state_dicts[f"{mod}e"] = torch.load(f"weights/model_{mod}/enc.pth")
+    state_dicts[f"{mod}d"] = torch.load(f"weights/model_{mod}/dec.pth")
+
+print("Enc/dec instantiated....")
+
+def stylizeAbstract(Ic,info):
+    enc.load_state_dict(state_dicts[f"{info['model_name']}e"])
+    dec.load_state_dict(state_dicts[f"{info['model_name']}d"])
+    img = transforms.ToTensor()(Ic)
+    arr = img.unsqueeze(0).cuda()
+    arr = arr * 2 - 1
+
+    with torch.no_grad():
+        f = enc(arr)
+        arr = dec(f)
+
+    arr = (arr + 1) / 2
+    arr -= arr.min()
+    arr /= arr.max()
+    arr = arr.squeeze(0).cpu().numpy().transpose(1, 2, 0) * 255
+    return Image.fromarray(arr.clip(0, 255).astype("uint8"))

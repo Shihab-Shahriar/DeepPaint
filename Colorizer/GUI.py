@@ -52,9 +52,10 @@ class ImageHint(ImageBox):
         
     def undo(self):
         #print("Last hint undone")
-        self.chosen_points.pop()
-        self.update()
-        self.updated.emit(self.img)
+        if self.chosen_points:
+            self.chosen_points.pop()
+            self.update()
+            self.updated.emit(self.img)
 
     def updateRad(self,r):
         self.r = r
@@ -131,26 +132,28 @@ class ColorizeTab(QWidget):
         mainL.addLayout(optL)
         
     def colorizeFunc(self,img):
-        print("Colorizing...",type(img))
+        #print("Colorizing...",type(img))
+        orig_size = img.size
+        img = img.resize((512,512))
         points = []
         qs = img.size
         sx, sy = img.size[0], img.size[1]
         for pos,col,r in self.hint.chosen_points:
-            print("In colorize",type(col))
+            #print("In colorize",type(col))
             pos = (int(pos[1] * sy),int(pos[0] * sx))
             col = (col.red(),col.green(),col.blue())
             points.append((pos,col,r))
 
-        self.out.img = colorize(img,points)
+        self.out.img = colorize(img,points).resize(orig_size)
         self.out.px = self.out.img.toqpixmap()
         self.out.update()
-        print("Done")
+        #print("Done")
         
     def colorChoose(self):
         colDialog = QColorDialog()
         col = colDialog.getColor()
         self.hint.brushCol = col
-        print("DIALOGG:",type(col))
+        #print("DIALOGG:",type(col))
         self.curCol.setStyleSheet(f"background-color: rgb({col.red()},{col.green()},{col.blue()})")
         self.update()
         

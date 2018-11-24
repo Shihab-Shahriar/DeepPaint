@@ -12,6 +12,15 @@ from Colorizer.GUI import ColorizeTab
 class Window(QWidget):
     def __init__(self):
         super(Window,self).__init__()
+        self.myMenuBar = QMenuBar(self)
+        file_menu = QMenu('File', self)
+        file_action = QAction("Open file", self) # title and parent
+        file_action.setStatusTip("Upload a new Painting to gallery")
+        file_action.triggered.connect(self.uploadImage)
+        file_menu.addAction(file_action)
+        self.myMenuBar.addMenu(file_menu)
+
+
         self.layout = QVBoxLayout(self)
         
         #-----------------bottom part : Begin---------------
@@ -38,15 +47,17 @@ class Window(QWidget):
         self.gallery.setSizePolicy(self.tabs.sizePolicy())
         btmlayout.addWidget(self.gallery)
         btmlayout.addWidget(self.tabs)
-        
-        #--------------bottom part : End---------------
-        
+                
         self.title = QLabel("Deep Paint",self)
         self.title.setAlignment(Qt.AlignCenter)
         
         self.layout.addWidget(self.title)
         self.layout.addLayout(btmlayout)
         self.setGeometry(230,250,800,600)
+
+    def uploadImage(self):
+        imagePath, _ = QFileDialog.getOpenFileName()
+        self.gallery.addImage(imagePath)
 
 if __name__ == '__main__':
     if not QApplication.instance():

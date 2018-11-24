@@ -100,6 +100,6 @@ class StylizerTab(QWidget):
         info = self.styleBox.info or {}
         info['slider'] = self.sl.value()
         self.out.img = stylize(self.contentBox.img,self.styleBox.img,info) 
-
+        print("SIZES:::",self.contentBox.img.size,self.styleBox.img.size,self.out.img.size)
         self.out.px = self.out.img.toqpixmap()
         self.out.update()
