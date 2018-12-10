@@ -118,7 +118,7 @@ def adaptive_instance_normalization(content_feat, style_feat):
 decoder = decoder.eval().cuda()
 encoder = encoder.eval().cuda()
 
-decoder.load_state_dict(torch.load("weights/AdaIN_decoder.pth"))
+decoder.load_state_dict(torch.load("d:/AdaIN/models/decoder_iter_20000.pth"))
 encoder.load_state_dict(torch.load("weights/AdaIN_encoder.pth"))
 encoder = nn.Sequential(*list(encoder.children())[:31])
 
