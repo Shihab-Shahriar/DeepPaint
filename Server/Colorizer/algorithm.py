@@ -45,7 +45,7 @@ def colorize(img:Image.Image,points:List):
     return img
 
 model = SIGGRAPHGenerator().cuda().eval()
-state = torch.load("d:/DeepPaint/weights/colorizer.pth")
+state = torch.load("d:/DeepPaint/server/weights/colorizer.pth")
 if hasattr(state,'_metadata'):
     del state._metadata
 model.load_state_dict(state)

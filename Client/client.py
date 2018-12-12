@@ -10,7 +10,7 @@ from GUI.colorizer import ColorizeTab
 
 
 class Window(QWidget):
-    def __init__(self):
+    def __init__(self,pdir=None):
         super(Window,self).__init__()
         self.myMenuBar = QMenuBar(self)
         file_menu = QMenu('File', self)
@@ -27,13 +27,13 @@ class Window(QWidget):
         btmlayout = QHBoxLayout(self)
         
         self.gallery = Gallery(self)
-        pdir = "d:/DeepPaint/Pics/"
-        paths = [pdir+f for f in os.listdir(pdir) if f.endswith(".jpg") or f.endswith(".png")]
-        for p in paths:
-            try:
-                self.gallery.addImage(p)
-            except:
-                pass
+        if pdir:
+            paths = [pdir+f for f in os.listdir(pdir) if f.endswith(".jpg") or f.endswith(".png")]
+            for p in paths:
+                try:
+                    self.gallery.addImage(p)
+                except:
+                    pass
         self.gallery.setMaximumWidth(200)
         self.gallery.setDragEnabled(True)
         
