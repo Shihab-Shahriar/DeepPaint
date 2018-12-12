@@ -6,7 +6,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from Gallery import GalleryItem
 from Gallery import OutputBox,ImageBox
-from Stylizer.algorithm import stylize
+from remote import remote_call
 
 class StyleList(QListWidget):
     def __init__(self,*args,**kwargs):
@@ -99,7 +99,9 @@ class StylizerTab(QWidget):
 
         info = self.styleBox.info or {}
         info['slider'] = self.sl.value()
-        self.out.img = stylize(self.contentBox.img,self.styleBox.img,info) 
-        print("SIZES:::",self.contentBox.img.size,self.styleBox.img.size,self.out.img.size)
+
+        msg = {'type':'stylize','cont':self.contentBox.img,'style':self.styleBox.img,'info':info}
+
+        self.out.img = remote_call(msg)
         self.out.px = self.out.img.toqpixmap()
         self.out.update()

@@ -5,8 +5,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from Gallery import *
-from Stylizer.GUI import StylizerTab
-from Colorizer.GUI import ColorizeTab
+from Stylizer.gui import StylizerTab
+from Colorizer.gui import ColorizeTab
 
 
 class Window(QWidget):

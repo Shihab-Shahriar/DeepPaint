@@ -5,7 +5,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 from Gallery import OutputBox,ImageBox
-from Colorizer.algorithm import colorize
+from remote import remote_call
 
 class ImageHint(ImageBox): 
 
@@ -143,8 +143,9 @@ class ColorizeTab(QWidget):
             pos = (int(pos[1] * sy),int(pos[0] * sx))
             col = (col.red(),col.green(),col.blue())
             points.append((pos,col,r))
-
-        self.out.img = colorize(img,points).resize(orig_size)
+            
+        msg = {'type':'colorize','img':img,'points':points}
+        self.out.img = remote_call(msg).resize(orig_size)
         self.out.px = self.out.img.toqpixmap()
         self.out.update()
         #print("Done")
