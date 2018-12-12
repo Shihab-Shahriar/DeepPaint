@@ -5,8 +5,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from Gallery import *
-from Stylizer.gui import StylizerTab
-from Colorizer.gui import ColorizeTab
+from GUI.stylizer import StylizerTab
+from GUI.colorizer import ColorizeTab
 
 
 class Window(QWidget):
@@ -27,7 +27,7 @@ class Window(QWidget):
         btmlayout = QHBoxLayout(self)
         
         self.gallery = Gallery(self)
-        pdir = "Pics/"
+        pdir = "d:/DeepPaint/Pics/"
         paths = [pdir+f for f in os.listdir(pdir) if f.endswith(".jpg") or f.endswith(".png")]
         for p in paths:
             try:

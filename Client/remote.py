@@ -4,16 +4,14 @@ import pickle
 
 HOST,PORT = 'localhost',1539
 
-def call(msg):
+def remote_call(msg):
 	raw_msg = pickle.dumps(msg)
 	sock = socket.socket()
+	sock.connect((HOST,PORT))
 	sock.sendall(raw_msg)
-	raw_reply = []
-	while True:
-		data = c.recv(4096) 
-		if not data: break
-		raw_reply.append(data)
-	raw_reply = b"".join(raw_reply)
+	print("Msg sent")
 
-	msg = pickle.loads(raw_reply)
-	return msg
+	file = sock.makefile('b')
+	reply = pickle.load(file,encoding='bytes')
+	print("Reply received")
+	return reply
