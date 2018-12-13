@@ -20,7 +20,7 @@ class StyleList(QListWidget):
 
         self.setFlow(QListView.LeftToRight)
 
-        pdir = "Pics/"
+        pdir = "ModelPics/"
         models = ['cezanne','el-greco','monet','picasso','van-gogh']
         paths = [pdir+f+".jpg" for f in models]
         for path,model_name in zip(paths,models):

@@ -1,8 +1,7 @@
 import socket
 import pickle
 
-
-HOST,PORT = 'localhost',1539
+HOST,PORT = "ip",-1
 
 def remote_call(msg):
 	raw_msg = pickle.dumps(msg)

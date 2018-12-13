@@ -102,11 +102,13 @@ class Gallery(QListWidget):
         if item==None: return 
         m = QMenu()
         
-        sv = m.addAction("Save")
-        sv.triggered.connect(lambda :self.saveFile(item))
-        dt = m.addAction("Delete")
-        dt.triggered.connect(lambda :self.takeItem(self.row(item)))
-        dt = m.addAction("Resize")
+        save = m.addAction("Save")
+        save.triggered.connect(lambda :self.saveFile(item))
+        delete = m.addAction("Delete")
+        delete.triggered.connect(lambda :self.takeItem(self.row(item)))
+        rsz = m.addAction("Resize")
+        rsz.triggered.connect(lambda :self.takeItem(self.row(item)))
+
         act = m.exec_(self.mapToGlobal(event.pos()))
         
     def saveFile(self,item):
