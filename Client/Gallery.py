@@ -107,7 +107,7 @@ class Gallery(QListWidget):
         delete = m.addAction("Delete")
         delete.triggered.connect(lambda :self.takeItem(self.row(item)))
         rsz = m.addAction("Resize")
-        rsz.triggered.connect(lambda :self.takeItem(self.row(item)))
+        rsz.triggered.connect(lambda :self.resize(item))
 
         act = m.exec_(self.mapToGlobal(event.pos()))
         
@@ -115,3 +115,8 @@ class Gallery(QListWidget):
         paths = QFileDialog.getSaveFileName(self,"Save painting")
         im = item.img
         im.save(paths[0])
+
+    def resize(self,item):
+        v,ok = QInputDialog.getInt(self,"Choose size","Pixel:",512)
+        img = item.img
+        self.addImage(img.resize((v,v)))

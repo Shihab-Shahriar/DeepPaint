@@ -36,6 +36,8 @@ def convRGB(rgb):
 
 def colorize(img:Image.Image,points:List):
     #print("POINTS SIZE:",len(points),img.size)
+    if img.size[-1]!=3:
+        img = img.convert("RGB")
     inp_ab = np.zeros((2,)+img.size)
     inp_mask = np.zeros((1,)+img.size)
     for pos,col,r in points:

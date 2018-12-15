@@ -15,7 +15,7 @@ import remote
 class Window(QWidget):
     def __init__(self,pdir=None):
         super(Window,self).__init__()
-
+        self.setWindowTitle("DeepPaint")
         #----------------MENU-----------------------
         self.myMenuBar = QMenuBar(self)
         file_menu = QMenu('File', self)
@@ -53,8 +53,8 @@ class Window(QWidget):
         self.stylizer = StylizerTab(self)
         
         self.tabs = QTabWidget(self)
-        self.tabs.addTab(self.colorizer,"Colorizer")
         self.tabs.addTab(self.stylizer,"Stylizer")
+        self.tabs.addTab(self.colorizer,"Colorizer")
         
         self.gallery.setSizePolicy(self.tabs.sizePolicy())
         btmlayout.addWidget(self.gallery)
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('-ip',type=str, default='localhost',help='server ip address')
-    parser.add_argument('-p', default=1539, help='sum the integers (default: find the max)')
+    parser.add_argument('-p', default=1539, type=int,help='sum the integers (default: find the max)')
 
     args = parser.parse_args()
     print(remote.HOST,remote.PORT)

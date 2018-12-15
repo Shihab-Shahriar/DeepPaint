@@ -114,11 +114,63 @@ def adaptive_instance_normalization(content_feat, style_feat):
         size)) / content_std.expand(size)
     return normalized_feat * style_std.expand(size) + style_mean.expand(size)
 
+def transform(cF,sF,alpha = .6):
+    cfSize = cF.size()
+    sF = sF.squeeze(0).cpu().double()
+    cF = cF.squeeze(0).cpu().double()
+
+    C,W,H = cF.size(0),cF.size(1),cF.size(2)
+    C1,W1,H1 = sF.size(0),sF.size(1),sF.size(2)
+
+    cF = cF.view(C,-1)
+    sF = sF.view(C,-1)
+    
+    c_mean = torch.mean(cF,1) # c x (h x w)
+    c_mean = c_mean.unsqueeze(1).expand_as(cF)
+    cF = cF - c_mean
+    
+    contentConv = torch.mm(cF,cF.t()).div(cF.size(1)-1) 
+    contentConv += torch.eye(cF.size(0)).double()
+    c_u,c_e,c_v = torch.svd(contentConv,some=False)
+    
+    k_c = cF.size(0)
+    for i in range(cF.size(0)):
+        if c_e[i] < 0.00001:
+            k_c = i
+            break
+            
+    sFSize = sF.size()
+    s_mean = torch.mean(sF,1)
+    sF = sF - s_mean.unsqueeze(1).expand_as(sF)
+    styleConv = torch.mm(sF,sF.t()).div(sFSize[1]-1)
+    s_u,s_e,s_v = torch.svd(styleConv,some=False)
+
+    k_s = sFSize[0]
+    for i in range(sFSize[0]):
+        if s_e[i] < 0.00001:
+            k_s = i
+            break
+            
+    c_d = (c_e[0:k_c]).pow(-0.5)
+    cM1 = torch.mm(c_v[:,0:k_c],torch.diag(c_d))
+    cM2 = torch.mm(cM1,(c_v[:,0:k_c].t()))
+    whiten_cF = torch.mm(cM2,cF)
+    
+    s_d = (s_e[0:k_s]).pow(0.5)
+    targetFeature = torch.mm(torch.mm(torch.mm(s_v[:,0:k_s],torch.diag(s_d)),(s_v[:,0:k_s].t())),whiten_cF)
+    targetFeature = targetFeature + s_mean.unsqueeze(1).expand_as(targetFeature)
+    
+    ccsF = alpha * targetFeature + (1-alpha) * cF
+    
+    out = ccsF.detach()
+    out.resize_(cfSize)
+    return out.cuda().float()
+
 
 decoder = decoder.eval().cuda()
 encoder = encoder.eval().cuda()
 
-decoder.load_state_dict(torch.load("d:/AdaIN/models/decoder_iter_20000.pth"))
+decoder.load_state_dict(torch.load("weights/AdaIN_decoder.pth"))
 encoder.load_state_dict(torch.load("weights/AdaIN_encoder.pth"))
 encoder = nn.Sequential(*list(encoder.children())[:31])
 
